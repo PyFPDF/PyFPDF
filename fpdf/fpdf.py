@@ -1421,7 +1421,7 @@ class FPDF(GraphicsStateMixin, TextRegionMixin):
                 self._drawing_graphics_state_registry,
                 Point(0, 0),
                 1,
-                self.h,
+                0,
                 starting_style,
             )
 

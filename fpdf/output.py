@@ -107,7 +107,7 @@ class PDFType3Font(PDFObject):
             f" {self._font3.base_font.ttfont['head'].xMax * self._font3.scale:.0f}"
             f" {self._font3.base_font.ttfont['head'].yMax * self._font3.scale:.0f}]"
         )
-        self.font_matrix = f"[{1/1000} 0 0 {1/1000} 0 0]"
+        self.font_matrix = "[0.001 0 0 0.001 0 0]"
         self.first_char = min(g.unicode for g in font3.glyphs)
         self.last_char = max(g.unicode for g in font3.glyphs)
         self.resources = None

@@ -253,6 +253,7 @@ class TTFFont:
         "cmap",
         "ttfont",
         "missing_glyphs",
+        "biggest_size_pt",
         "color_font",
     )
 
@@ -347,6 +348,7 @@ class TTFFont:
         self.ss = round(os2_table.yStrikeoutSize * self.scale)
         self.emphasis = TextEmphasis.coerce(style)
         self.subset = SubsetMap(self, [ord(char) for char in sbarr])
+        self.biggest_size_pt = 0
         self.color_font = get_color_font_object(fpdf, self)
 
     # pylint: disable=no-member
@@ -363,7 +365,15 @@ class TTFFont:
         self.ttfont.close()
         self._hbfont = None
 
+    def escape_text(self, text):
+        if self.color_font:
+            encoded = text.encode("latin-1", errors="replace")
+            return escape_parens(encoded.decode("latin-1", errors="ignore"))
+        return escape_parens(text.encode("utf-16-be").decode("latin-1"))
+
     def get_text_width(self, text, font_size_pt, text_shaping_parms):
+        if font_size_pt > self.biggest_size_pt:
+            self.biggest_size_pt = font_size_pt
         if text_shaping_parms:
             return self.shaped_text_width(text, font_size_pt, text_shaping_parms)
         return (len(text), sum(self.cw[ord(c)] for c in text) * font_size_pt * 0.001)
@@ -417,7 +427,7 @@ class TTFFont:
             # Instead of adding the actual character to the stream its code is
             # mapped to a position in the font's subset
             txt_mapped += chr(self.subset.pick(uni))
-        return f'({escape_parens(txt_mapped.encode("utf-16-be").decode("latin-1"))}) Tj'
+        return f"({self.escape_text(txt_mapped)}) Tj"
 
     def shape_text(self, text, font_size_pt, text_shaping_parms):
         """
