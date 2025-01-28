@@ -39,7 +39,7 @@ def test_svg_bungee(tmp_path):
     pdf.ln()
     pdf.multi_cell(w=pdf.epw, text=LOREM_IPSUM.upper(), align="J")
 
-    assert_pdf_equal(pdf, HERE / "svg_bungee.pdf", tmp_path, generate=True)
+    assert_pdf_equal(pdf, HERE / "svg_bungee.pdf", tmp_path)
 
 
 def test_twitter_emoji_shaping(tmp_path):

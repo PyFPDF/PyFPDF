@@ -20,7 +20,7 @@ endobj
 /Contents 4 0 R
 /Group <</Type /Group /S /Transparency /CS /DeviceRGB>>
 /Parent 1 0 R
-/Resources 33 0 R
+/Resources 34 0 R
 /Type /Page
 >>
 endobj
@@ -283,6 +283,57 @@ endstream
 endobj
 31 0 obj
 <<
+/Length 715
+>>
+stream
+/CIDInit /ProcSet findresource begin
+12 dict begin
+begincmap
+/CIDSystemInfo
+<</Registry (Adobe)
+/Ordering (UCS)
+/Supplement 0
+>> def
+/CMapName /Adobe-Identity-UCS def
+/CMapType 2 def
+1 begincodespacerange
+<00> <FF>
+endcodespacerange
+25 beginbfchar
+<00> <0000>
+<30> <0030>
+<31> <0031>
+<32> <0032>
+<33> <0033>
+<34> <0034>
+<35> <0035>
+<36> <0036>
+<37> <0037>
+<38> <0038>
+<39> <0039>
+<01> <D83CDDEB>
+<02> <D83CDDF7>
+<03> <D83CDDFA>
+<04> <D83CDDF8>
+<05> <D83CDDE8>
+<06> <D83CDDE6>
+<07> <D83EDDD1>
+<08> <D83CDFFD>
+<09> <D83CDFFF>
+<0B> <D83CDDEBD83CDDF7>
+<0C> <D83CDDFAD83CDDF8>
+<0E> <D83CDDE8D83CDDE6>
+<0F> <D83EDDD1D83CDFFD>
+<10> <D83EDDD1D83CDFFF>
+endbfchar
+endcmap
+CMapName currentdict /CMap defineresource pop
+end
+end
+endstream
+endobj
+32 0 obj
+<<
 /CharProcs <</.notdef 16 0 R
 /u1f1eb 17 0 R
 /u1f1f7 18 0 R
@@ -325,17 +376,18 @@ endobj
 56 /.notdef
 57 /.notdef]>>
 /FirstChar 0
-/FontBBox [-52.734375 -177.734375 1056.640625 931.640625]
+/FontBBox [-53 -178 1057 932]
 /FontMatrix [0.001 0 0 0.001 0 0]
 /LastChar 57
 /Name /MPDFAA+TwemojiMozilla
 /Resources <</ExtGState <</GS0 5 0 R>>>>
 /Subtype /Type3
+/ToUnicode 31 0 R
 /Type /Font
 /Widths [1953 1000 1000 1000 1000 1000 1000 1000 1000 1000 0 1000 1000 0 1000 1000 1000 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1953 1953 1953 1953 1953 1953 1953 1953 1953 1953]
 >>
 endobj
-32 0 obj
+33 0 obj
 <<
 /BaseFont /Helvetica
 /Encoding /WinAnsiEncoding
@@ -343,20 +395,20 @@ endobj
 /Type /Font
 >>
 endobj
-33 0 obj
+34 0 obj
 <<
-/Font <</F1 31 0 R
-/F2 32 0 R>>
+/Font <</F1 32 0 R
+/F2 33 0 R>>
 /ProcSet [/PDF /Text /ImageB /ImageC /ImageI]
 >>
 endobj
-34 0 obj
+35 0 obj
 <<
 /CreationDate (D:19691231190000Z)
 >>
 endobj
 xref
-0 35
+0 36
 0000000000 65535 f 
 0000000009 00000 n 
 0000000096 00000 n 
@@ -389,16 +441,17 @@ xref
 0000019245 00000 n 
 0000022682 00000 n 
 0000026085 00000 n 
-0000027146 00000 n 
-0000027244 00000 n 
-0000027344 00000 n 
+0000026852 00000 n 
+0000027903 00000 n 
+0000028001 00000 n 
+0000028101 00000 n 
 trailer
 <<
-/Size 35
+/Size 36
 /Root 2 0 R
-/Info 34 0 R
-/ID [<EBD713D7BF55683A7AA191B13A02AB74><EBD713D7BF55683A7AA191B13A02AB74>]
+/Info 35 0 R
+/ID [<12F4EA115351D9AD1B9496741C01514E><12F4EA115351D9AD1B9496741C01514E>]
 >>
 startxref
-27400
+28157
 %%EOF

@@ -622,6 +622,9 @@ class SubsetMap:
         if unicode == 0x00:
             glyph_id = next(iter(self.font.cmap))
             return Glyph(glyph_id, (0x00,), ".notdef", 0)
+        if unicode == 0x20:
+            glyph_id = next(iter(self.font.cmap))
+            return Glyph(glyph_id, (0x20,), "space", self.font.cw[0x20])
         return None
 
     def get_all_glyph_names(self):

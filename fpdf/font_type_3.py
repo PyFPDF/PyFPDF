@@ -3,6 +3,8 @@ import logging
 from typing import List, Tuple, TYPE_CHECKING
 from io import BytesIO
 from fontTools.ttLib.tables.BitmapGlyphMetrics import BigGlyphMetrics, SmallGlyphMetrics
+from fontTools.ttLib.tables.C_O_L_R_ import table_C_O_L_R_
+from fontTools.ttLib.tables.otTables import Paint, PaintFormat
 
 from .drawing import DeviceRGB, GraphicsContext, Transform, PathPen, PaintedPath
 
@@ -146,34 +148,56 @@ class SVGColorFont(Type3Font):
 
 class COLRFont(Type3Font):
 
+    def __init__(self, fpdf: "FPDF", base_font: "TTFFont"):
+        super().__init__(fpdf, base_font)
+        colr_table: table_C_O_L_R_ = self.base_font.ttfont["COLR"]
+        self.colrv0_glyphs = []
+        self.colrv1_glyphs = []
+        self.version = colr_table.version
+        if colr_table.version == 0:
+            self.colrv0_glyphs = colr_table.ColorLayers
+        else:
+            self.colrv0_glyphs = colr_table._decompileColorLayersV0(colr_table.table)
+            self.colrv1_glyphs = {
+                glyph.BaseGlyph: glyph
+                for glyph in colr_table.table.BaseGlyphList.BaseGlyphPaintRecord
+            }
+        self.palette = None
+        if "CPAL" in self.base_font.ttfont:
+            # hardcoding the first palette for now
+            print(f"This font has {len(self.base_font.ttfont['CPAL'].palettes)} palettes")
+            palette = self.base_font.ttfont["CPAL"].palettes[0]
+            self.palette = [
+                (color.red / 255, color.green / 255, color.blue / 255, color.alpha / 255) for color in palette
+            ]
+        
+
     def glyph_exists(self, glyph_name):
-        return glyph_name in self.base_font.ttfont["COLR"].ColorLayers
+        return glyph_name in self.colrv0_glyphs or glyph_name in self.colrv1_glyphs
 
     def load_glyph_image(self, glyph: Type3FontGlyph):
         w = round(self.base_font.ttfont["hmtx"].metrics[glyph.glyph_name][0] + 0.001)
-        glyph_layers = self.base_font.ttfont["COLR"].ColorLayers[glyph.glyph_name]
-        img = self.draw_glyph_colrv0(glyph_layers)
-        img.transform = Transform.scaling(self.scale, -self.scale)
+        if glyph.glyph_name in self.colrv0_glyphs:
+            glyph_layers = self.base_font.ttfont["COLR"].ColorLayers[glyph.glyph_name]
+            img = self.draw_glyph_colrv0(glyph_layers)
+        else:
+            img = self.draw_glyph_colrv1(glyph.glyph_name)
+        img.transform = img.transform @ Transform.scaling(self.scale, -self.scale)
         output_stream = self.fpdf.draw_vector_glyph(img, self)
         glyph.glyph = (
             f"{w * self.scale / self.upem} 0 d0\n" "q\n" f"{output_stream}\n" "Q"
         )
         glyph.glyph_width = w
 
-    def get_color(self, color_index, palette=0):
-        palettes = [
-            [(c.red / 255, c.green / 255, c.blue / 255, c.alpha / 255) for c in p]
-            for p in self.base_font.ttfont["CPAL"].palettes
-        ]
-        r, g, b, a = palettes[palette][color_index]
-        # a *= alpha
+    def get_color(self, color_index, alpha=1):
+        r, g, b, a = self.palette[color_index]
+        a *= alpha
         return DeviceRGB(r, g, b, a)
 
     def draw_glyph_colrv0(self, layers):
         gc = GraphicsContext()
+        gc.transform = Transform.identity()
         for layer in layers:
-            print(layer.__repr__)
-            print(layer.colorID, layer.name)
             path = PaintedPath()
             glyph_set = self.base_font.ttfont.getGlyphSet()
             pen = PathPen(path, glyphSet=glyph_set)
@@ -183,10 +207,44 @@ class COLRFont(Type3Font):
             path.style.stroke_color = self.get_color(layer.colorID)
             gc.add_item(path)
         return gc
-        # print(path)
-        # self.base_font.hbfont.draw_glyph_with_pen(gid, path)
-        # canvas.drawPathSolid(path, self._getColor(layer.colorID, 1))
+    
+    def draw_glyph_colrv1(self, glyph_name):
+        gc = GraphicsContext()
+        gc.transform = Transform.identity()
+        glyph = self.colrv1_glyphs[glyph_name]
+        self.draw_colrv1_paint(glyph.Paint, gc)
+        return gc
 
+    def draw_colrv1_paint(self, paint: Paint, gc: GraphicsContext):
+        print(paint.getFormatName())
+        if paint.Format == PaintFormat.PaintColrLayers: #1
+            print("[PaintColrLayers] FirstLayerIndex: ", paint.FirstLayerIndex, " NumLayers: ", paint.NumLayers)
+            layer_list = self.base_font.ttfont["COLR"].table.LayerList
+            for layer in range(paint.FirstLayerIndex, paint.FirstLayerIndex + paint.NumLayers):
+                self.draw_colrv1_paint(layer_list.Paint[layer], gc)
+        elif paint.Format == PaintFormat.PaintSolid: #2
+            color = self.get_color(paint.PaletteIndex, paint.Alpha)
+            path: PaintedPath = gc.path_items[-1]
+            path.style.fill_color = color
+            path.style.stroke_color = color
+        elif paint.Format == PaintFormat.PaintLinearGradient: #4
+            print("[PaintLinearGradient] ColorLine: ")
+            for stop in paint.ColorLine.ColorStop:
+                print("Stop: ", stop.StopOffset, " color: ", stop.PaletteIndex)
+                print("x0: ", paint.x0, " y0: ", paint.y0, " x1: ", paint.x1, " y1: ", paint.y1)
+        elif paint.Format == PaintFormat.PaintGlyph: #10
+            path = PaintedPath()
+            glyph_set = self.base_font.ttfont.getGlyphSet()
+            pen = PathPen(path, glyphSet=glyph_set)
+            glyph = glyph_set[paint.Glyph]
+            glyph.draw(pen)
+            gc.add_item(path)
+            self.draw_colrv1_paint(paint.Paint, gc)
+        else:
+            print("Unknown PaintFormat: ", paint.Format)
+
+        
+        
 
 class CBDTColorFont(Type3Font):
 
@@ -195,11 +253,11 @@ class CBDTColorFont(Type3Font):
     def glyph_exists(self, glyph_name):
         return glyph_name in self.base_font.ttfont["CBDT"].strikeData[0]
 
-    def load_glyph_image(self, glyph_name):
+    def load_glyph_image(self, glyph: Type3FontGlyph):
         ppem = self.base_font.ttfont["CBLC"].strikes[0].bitmapSizeTable.ppemX
-        glyph = self.base_font.ttfont["CBDT"].strikeData[0][glyph_name]
-        glyph_bitmap = glyph.data[9:]
-        metrics = glyph.metrics
+        g = self.base_font.ttfont["CBDT"].strikeData[0][glyph.glyph_name]
+        glyph_bitmap = g.data[9:]
+        metrics = g.metrics
         if isinstance(metrics, SmallGlyphMetrics):
             x_min = round(metrics.BearingX * self.upem / ppem)
             y_min = round((metrics.BearingY - metrics.height) * self.upem / ppem)
@@ -300,9 +358,9 @@ def get_color_font_object(fpdf: "FPDF", base_font: "TTFFont") -> Type3Font:
     if "COLR" in base_font.ttfont:
         if base_font.ttfont["COLR"].version == 0:
             LOGGER.warning("Font %s is a COLRv0 color font", base_font.name)
-            return COLRFont(fpdf, base_font)
-        LOGGER.warning("Font %s is a COLRv1 color font", base_font.name)
-        return None
+        else:
+            LOGGER.warning("Font %s is a COLRv1 color font", base_font.name)
+        return COLRFont(fpdf, base_font)
     if "SVG " in base_font.ttfont:
         LOGGER.warning("Font %s is a SVG color font", base_font.name)
         return SVGColorFont(fpdf, base_font)

@@ -20,7 +20,7 @@ def test_twemoji(tmp_path):
     pdf.cell(text="Top 10 emojis:", new_x="right", new_y="top")
     pdf.set_font("Twemoji", "", 24)
     pdf.cell(text=test_text, new_x="lmargin", new_y="next")
-    assert_pdf_equal(pdf, HERE / "colrv0-twemoji.pdf", tmp_path, generate=True)
+    assert_pdf_equal(pdf, HERE / "colrv0-twemoji.pdf", tmp_path)
 
 
 def test_twemoji_shaping(tmp_path):
@@ -38,7 +38,7 @@ def test_twemoji_shaping(tmp_path):
     pdf.set_font("Twemoji", "", 24)
     pdf.set_text_shaping(True)
     pdf.multi_cell(w=pdf.epw, text=combined_emojis, new_x="lmargin", new_y="next")
-    assert_pdf_equal(pdf, HERE / "colrv0-twemoji_shaping.pdf", tmp_path, generate=True)
+    assert_pdf_equal(pdf, HERE / "colrv0-twemoji_shaping.pdf", tmp_path)
 
 
 def test_twemoji_text(tmp_path):
@@ -50,4 +50,4 @@ def test_twemoji_text(tmp_path):
     pdf.set_fallback_fonts(["Twemoji"])
     pdf.add_page()
     pdf.multi_cell(w=pdf.epw, text=text)
-    assert_pdf_equal(pdf, HERE / "colrv0-twemoji_text.pdf", tmp_path, generate=True)
+    assert_pdf_equal(pdf, HERE / "colrv0-twemoji_text.pdf", tmp_path)

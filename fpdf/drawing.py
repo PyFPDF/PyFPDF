@@ -3789,6 +3789,11 @@ class PaintedPath:
             self._close_context = self._graphics_context
             self._closed = True
 
+    def linear_gradient_fill(self, x1, y1, x2, y2, stops):
+        gradient = LinearGradient(fpdf=None, from_x=x1, from_y=y1, to_x=x2, to_ys=y2, colors=[stop[1] for stop in stops])
+        gradient.coords = list(map(str, [x1, x2, y1, y2]))
+        self.gradient=gradient
+
     def render(
         self, gsd_registry, style, last_item, initial_point, debug_stream=None, pfx=None
     ):

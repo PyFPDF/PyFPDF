@@ -111,6 +111,7 @@ class PDFType3Font(PDFObject):
         self.first_char = min(g.unicode for g in font3.glyphs)
         self.last_char = max(g.unicode for g in font3.glyphs)
         self.resources = None
+        self.to_unicode = None
 
     @property
     def char_procs(self):
@@ -760,7 +761,48 @@ class OutputProducer:
                     glyph.obj_id = self._add_pdf_obj(
                         PDFContentStream(contents=glyph.glyph, compress=False), "fonts"
                     )
+                bfChar = []
+                def format_code(unicode):
+                    if unicode > 0xFFFF:
+                        # Calculate surrogate pair
+                        code_high = 0xD800 | (unicode - 0x10000) >> 10
+                        code_low = 0xDC00 | (unicode & 0x3FF)
+                        return f"{code_high:04X}{code_low:04X}"
+                    return f"{unicode:04X}"
+
+                for glyph, code_mapped in font.subset.items():
+                    if len(glyph.unicode) == 0:
+                        continue
+                    bfChar.append(
+                        f'<{code_mapped:02X}> <{"".join(format_code(code) for code in glyph.unicode)}>\n'
+                    )
+
+                to_unicode_obj = PDFContentStream(
+                    "/CIDInit /ProcSet findresource begin\n"
+                    "12 dict begin\n"
+                    "begincmap\n"
+                    "/CIDSystemInfo\n"
+                    "<</Registry (Adobe)\n"
+                    "/Ordering (UCS)\n"
+                    "/Supplement 0\n"
+                    ">> def\n"
+                    "/CMapName /Adobe-Identity-UCS def\n"
+                    "/CMapType 2 def\n"
+                    "1 begincodespacerange\n"
+                    "<00> <FF>\n"
+                    "endcodespacerange\n"
+                    f"{len(bfChar)} beginbfchar\n"
+                    f"{''.join(bfChar)}"
+                    "endbfchar\n"
+                    "endcmap\n"
+                    "CMapName currentdict /CMap defineresource pop\n"
+                    "end\n"
+                    "end"
+                )
+                self._add_pdf_obj(to_unicode_obj, "fonts")
+                
                 t3_font_obj = PDFType3Font(font.color_font)
+                t3_font_obj.to_unicode = pdf_ref(to_unicode_obj.id)
                 t3_font_obj.generate_resources(
                     image_objects_per_index, gfxstate_objs_per_name
                 )
