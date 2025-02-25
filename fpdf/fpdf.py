@@ -94,6 +94,7 @@ from .enums import (
     WrapMode,
     XPos,
     YPos,
+    OutputIntentSubType,
 )
 from .errors import FPDFException, FPDFPageFormatException, FPDFUnicodeEncodingException
 from .fonts import CoreFont, CORE_FONTS, FontFace, TextStyle, TitleStyle, TTFFont
@@ -126,6 +127,7 @@ from .output import (
     PDFPageLabel,
     ResourceCatalog,
     stream_content_for_raster_image,
+    PDFICCProfileObject,
 )
 from .recorder import FPDFRecorder
 from .sign import Signature
@@ -301,6 +303,7 @@ class FPDF(GraphicsStateMixin, TextRegionMixin):
         self.oversized_images = None
         self.oversized_images_ratio = 2  # number of pixels per UserSpace point
         self.struct_builder = StructureTreeBuilder()
+
         self.toc_placeholder = None  # optional ToCPlaceholder instance
         self._outline: list[OutlineSection] = []  # list of OutlineSection
         # flag set true while rendering the table of contents
@@ -308,6 +311,8 @@ class FPDF(GraphicsStateMixin, TextRegionMixin):
         # allow page insertion when writing the table of contents
         self._toc_allow_page_insertion = False
         self._toc_inserted_pages = 0  # number of pages inserted
+        self._output_intents = []  # optional list of Output Intents
+
         self._sign_key = None
         self.title = None
         self.section_title_styles = {}  # level -> TextStyle
@@ -468,6 +473,56 @@ class FPDF(GraphicsStateMixin, TextRegionMixin):
             self._set_min_pdf_version("1.6")
         elif self._page_mode == PageMode.USE_OC:
             self._set_min_pdf_version("1.5")
+
+    @property
+    def output_intents(self):
+        return self._output_intents
+
+    # @output_intents.setter
+    def set_output_intent(
+        self,
+        subtype: OutputIntentSubType,
+        output_condition_identifier: str = None,
+        output_condition: str = None,
+        registry_name: str = None,
+        dest_output_profile: PDFICCProfileObject = None,
+        info: str = None,
+    ):
+        """
+        Adds desired Output Intent to the Output Intents array:
+
+        Args:
+            subtype (OutputIntentSubType, required): PDFA, PDFX or ISOPDF
+            output_condition_identifier (str, required): see the Name in
+                https://www.color.org/registry.xalter
+            output_condition (str, optional): see the Definition in
+                https://www.color.org/registry.xalter
+            registry_name (str, optional): "https://www.color.org"
+            dest_output_profile (PDFICCProfileObject, required/optional):
+                PDFICCProfileObject | None # (required  if
+                output_condition_identifier does not specify a standard
+                production condition; optional otherwise)
+            info (str, required/optional see dest_output_profile): human
+                readable description of profile
+        """
+        subtypes_in_arr = [_["subtype"].value for _ in self.output_intents]
+        if subtype.value not in subtypes_in_arr:
+            self._output_intents.append(
+                {
+                    "subtype": OutputIntentSubType.coerce(subtype),
+                    "output_condition_identifier": output_condition_identifier,
+                    "output_condition": output_condition,
+                    "dest_output_profile": dest_output_profile,
+                    "info": info,
+                    "registry_name": registry_name,
+                }
+            )
+        else:
+            raise ValueError(
+                "set_output_intent: subtype '" + subtype.value + "' already exists."
+            )
+        if self.output_intents:
+            self._set_min_pdf_version("1.4")
 
     @property
     def epw(self):

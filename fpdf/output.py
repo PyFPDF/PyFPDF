@@ -17,6 +17,7 @@ from fontTools import subset as ftsubset
 
 from .annotations import PDFAnnotation
 from .enums import PDFResourceType, PageLabelStyle, SignatureFlag
+from .enums import OutputIntentSubType
 from .errors import FPDFException
 from .line_break import TotalPagesSubstitutionFragment
 from .image_datastructures import RasterImageInfo
@@ -145,6 +146,7 @@ class PDFCatalog(PDFObject):
         self.metadata = None
         self.names = None
         self.outlines = None
+        self.output_intents = None
         self.struct_tree_root = None
 
 
@@ -214,7 +216,14 @@ class PDFXObject(PDFContentStream):
         self.s_mask = None
 
 
-class PDFICCPObject(PDFContentStream):
+class PDFICCProfileObject(PDFContentStream):
+    """holds values for ICC Profile Stream
+    Args:
+        contents (str): stream content
+        n (int): [1|3|4], # the numbers for colors 1=Gray, 3=RGB, 4=CMYK
+        alternate (str): ['DeviceGray'|'DeviceRGB'|'DeviceCMYK']
+    """
+
     __slots__ = (  # RAM usage optimization
         "_id",
         "_contents",
@@ -441,6 +450,75 @@ class PDFXrefAndTrailer(ContentWithoutID):
         return "\n".join(out)
 
 
+class OutputIntentDictionary:
+    """The optional OutputIntents (PDF 1.4) entry in the document
+    catalog dictionary holds an array of output intent dictionaries,
+    each describing the colour reproduction characteristics of a possible
+    output device.
+
+    Args:
+        subtype (OutputIntentSubType, required): PDFA, PDFX or ISOPDF
+        output_condition_identifier (str, required): see the Name in
+            https://www.color.org/registry.xalter
+        output_condition (str, optional): see the Definition in
+            https://www.color.org/registry.xalter
+        registry_name (str, optional): "https://www.color.org"
+        dest_output_profile (PDFICCProfileObject, required/optional):
+            PDFICCProfileObject | None # (required if
+            output_condition_identifier does not specify a standard
+            production condition; optional otherwise)
+        info (str, required/optional see dest_output_profile): human
+            readable description of profile
+    """
+
+    __slots__ = (  # RAM usage optimization
+        "type",
+        "s",
+        "output_condition_identifier",
+        "output_condition",
+        "registry_name",
+        "dest_output_profile",
+        "info",
+    )
+
+    def __init__(
+        self,
+        subtype: "OutputIntentSubType | str",
+        output_condition_identifier: str,
+        output_condition: str = None,
+        registry_name: str = None,
+        dest_output_profile: PDFICCProfileObject = None,
+        info: str = None,
+    ):
+        self.type = Name("OutputIntent")
+        self.s = Name(OutputIntentSubType.coerce(subtype).value)
+        self.output_condition_identifier = (
+            PDFString(output_condition_identifier)
+            if output_condition_identifier
+            else None
+        )
+        self.output_condition = (
+            PDFString(output_condition) if output_condition else None
+        )
+        self.registry_name = PDFString(registry_name) if registry_name else None
+        self.dest_output_profile = (
+            dest_output_profile
+            if dest_output_profile
+            and isinstance(dest_output_profile, PDFICCProfileObject)
+            else None
+        )
+        self.info = PDFString(info) if info else None
+
+    # method override
+    def serialize(self, _security_handler=None, _obj_id=None):
+        obj_dict = build_obj_dict(
+            {key: getattr(self, key) for key in dir(self)},
+            _security_handler=_security_handler,
+            _obj_id=_obj_id,
+        )
+        return pdf_dict(obj_dict)
+
+
 class ResourceCatalog:
     "Manage the indexing of resources and association to the pages they are used"
 
@@ -530,6 +608,7 @@ class OutputProducer:
         xmp_metadata_obj = self._add_xmp_metadata()
         info_obj = self._add_info()
         encryption_obj = self._add_encryption()
+
         xref = PDFXrefAndTrailer(self)
         self.pdf_objs.append(xref)
 
@@ -883,7 +962,7 @@ class OutputProducer:
                 break
         assert iccp_content is not None
         # Note: n should be 4 if the profile ColorSpace is CMYK
-        iccp_obj = PDFICCPObject(
+        iccp_obj = PDFICCProfileObject(
             contents=iccp_content, n=img_info["dpn"], alternate=img_info["cs"]
         )
         iccp_pdf_i = self._add_pdf_obj(iccp_obj, "iccp")
@@ -943,6 +1022,9 @@ class OutputProducer:
             img_obj.color_space.append(pdf_ref(pal_cs_obj.id))
 
         return img_obj
+
+    # def _add_icc_objs_from_output_intents(self):
+    #     self.fpdf.catalog
 
     def _add_gfxstates(self):
         gfxstate_objs_per_name = OrderedDict()
@@ -1167,6 +1249,22 @@ class OutputProducer:
             page_mode=fpdf.page_mode,
             viewer_preferences=fpdf.viewer_preferences,
         )
+        if fpdf.output_intents is not None:
+            arr = []
+            for item in fpdf.output_intents:
+                thedict = OutputIntentDictionary(
+                    item["subtype"].value,
+                    item["output_condition_identifier"],
+                    item["output_condition"],
+                    item["registry_name"],
+                    item["dest_output_profile"],
+                    item["info"],
+                )
+                arr.append(thedict)
+                if thedict.dest_output_profile:
+                    self._add_pdf_obj(thedict.dest_output_profile)
+            catalog_obj.output_intents = PDFArray(arr)
+
         self._add_pdf_obj(catalog_obj)
         return catalog_obj
 
