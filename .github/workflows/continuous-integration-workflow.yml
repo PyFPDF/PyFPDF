@@ -26,15 +26,13 @@ jobs:
           find . -name '*.pdf' | xargs -n 1 sh -c 'qpdf --check --password=fpdf2 $0 || exit 255'
           export PYTHONPATH=$PWD
           # Using VeraPDF:
-          # -- VeraPDF download is broken - disabling for now --
-          #scripts/install-verapdf.sh
-          #scripts/verapdf.py --process-all-test-pdf-files
-          #scripts/verapdf.py --print-aggregated-report
+          scripts/install-verapdf.sh
+          scripts/verapdf.py --process-all-test-pdf-files
+          scripts/verapdf.py --print-aggregated-report
           # Using Datalogics PDF Checker:
-          # -- PDF Checker download is broken - disabling for now --
-          #scripts/install-pdfchecker.sh
-          #scripts/pdfchecker.py --process-all-test-pdf-files
-          #scripts/pdfchecker.py --print-aggregated-report
+          scripts/install-pdfchecker.sh
+          scripts/pdfchecker.py --process-all-test-pdf-files
+          scripts/pdfchecker.py --print-aggregated-report
   lint:
     # Note: there is currently an issue with ubuntu-latest==ubuntu-24.04 / OpenSSL 3.0.13 / oscrypto:
     # https://github.com/py-pdf/fpdf2/issues/1333
